@@ -39,13 +39,22 @@ It is a temporary live demo, all data will be deleted after 10 minutes. Sponsore
 
 ## 🔧 How to Install
 
-### 🐳 Docker Compose
+### 🐳 Docker Compose (Build from Source)
+
+> [!IMPORTANT]
+> This fork uses `build:` in `compose.yaml` to build the image **from source code**, not from Docker Hub. Make sure to clone the full repository first before running Docker Compose.
 
 ```bash
-mkdir uptime-kuma
-cd uptime-kuma
-curl -o compose.yaml https://raw.githubusercontent.com/hendrax5/uptime-kuma-agent/master/compose.yaml
-docker compose up -d
+git clone https://github.com/hendrax5/uptime-kuma-agent.git
+cd uptime-kuma-agent
+docker compose up --build -d
+```
+
+To rebuild after pulling new changes:
+
+```bash
+git pull
+docker compose up --build -d
 ```
 
 Uptime Kuma is now running on all network interfaces (e.g. http://localhost:3001 or http://your-ip:3001).
@@ -53,7 +62,9 @@ Uptime Kuma is now running on all network interfaces (e.g. http://localhost:3001
 > [!WARNING]
 > File Systems like **NFS** (Network File System) are **NOT** supported. Please map to a local directory or volume.
 
-### 🐳 Docker Command
+### 🐳 Docker Command (Pre-built Image)
+
+If you prefer using a pre-built image from Docker Hub without building from source:
 
 ```bash
 docker run -d --restart=always -p 3001:3001 -v uptime-kuma:/app/data --name uptime-kuma hendrax5/uptime-kuma-agent:2
