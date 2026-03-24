@@ -465,6 +465,13 @@ class Monitor extends BeanModel {
                 if (await Monitor.isUnderMaintenance(this.id)) {
                     bean.msg = "Monitor under maintenance";
                     bean.status = MAINTENANCE;
+                } else if (this.agent_id) {
+                    let startTime = dayjs().valueOf();
+                    const { AgentManager } = require("../agent-manager");
+                    let result = await AgentManager.executeOnAgent(this.agent_id, this.toJSON(undefined, true));
+                    bean.status = result.status;
+                    bean.msg = result.msg;
+                    bean.ping = result.ping !== undefined ? result.ping : (dayjs().valueOf() - startTime);
                 } else if (this.type === "http" || this.type === "keyword" || this.type === "json-query") {
                     // Do not do any queries/high loading things before the "bean.ping"
                     let startTime = dayjs().valueOf();

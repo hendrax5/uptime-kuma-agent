@@ -185,6 +185,8 @@ const { dockerSocketHandler } = require("./socket-handlers/docker-socket-handler
 const { maintenanceSocketHandler } = require("./socket-handlers/maintenance-socket-handler");
 const { apiKeySocketHandler } = require("./socket-handlers/api-key-socket-handler");
 const { generalSocketHandler } = require("./socket-handlers/general-socket-handler");
+const { agentSocketHandler } = require("./socket-handlers/agent-socket-handler");
+const { AgentManager } = require("./agent-manager");
 const { Settings } = require("./settings");
 const apicache = require("./modules/apicache");
 const { resetChrome } = require("./monitor-types/real-browser-monitor-type");
@@ -230,6 +232,7 @@ let needSetup = false;
 
     // Database should be ready now
     await server.initAfterDatabaseReady();
+    AgentManager.init(io);
     server.entryPage = await Settings.get("entryPage");
     await StatusPage.loadDomainMappingList();
 
@@ -1716,6 +1719,7 @@ let needSetup = false;
         remoteBrowserSocketHandler(socket);
         generalSocketHandler(socket, server);
         chartSocketHandler(socket);
+        agentSocketHandler(socket, server);
 
         log.debug("server", "added all socket handlers");
 

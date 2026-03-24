@@ -2,7 +2,9 @@
     <img src="./public/icon.svg" width="128" alt="Uptime Kuma Logo" />
 </div>
 
-# Uptime Kuma
+# Uptime Kuma (Master-Agent Fork)
+
+> **Note**: This is a custom fork with **Master-Agent Distributed Monitoring** capabilities. It includes an `agent-node/` application that can run on remote servers to execute ping and HTTP checks, reporting back to this Master UI.
 
 Uptime Kuma is an easy-to-use self-hosted monitoring tool.
 

@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # The Uptime Kuma Master Node
+  uptime-kuma:
+    build:
+      context: .
+      dockerfile: docker/dockerfile
+      target: release
+    container_name: uptime-kuma-master
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+  # Wait for You to setup the master and get a token before uncommenting!
+  # uptime-kuma-agent:
+  #   build:
+  #     context: ./agent-node
+  #     dockerfile: Dockerfile
+  #   container_name: uptime-kuma-agent
+  #   environment:
+  #     - MASTER_URL=http://uptime-kuma:3001
+  #     - AGENT_TOKEN=<YOUR_AGENT_TOKEN_HERE>
+  #   depends_on:
+  #     - uptime-kuma
+  #   restart: unless-stopped
+
+

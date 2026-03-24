@@ -165,6 +165,17 @@
                                 />
                             </div>
 
+                            <!-- Run From (Agent) -->
+                            <div class="my-3">
+                                <label class="form-label">{{ $t("Run From") }}</label>
+                                <select v-model="monitor.agent_id" class="form-select">
+                                    <option :value="null">{{ $t("Master (Default)") }}</option>
+                                    <option v-for="agent in agentList" :key="agent.id" :value="agent.id">
+                                        {{ agent.name }} ({{ agent.status === 1 ? 'Online' : 'Offline' }})
+                                    </option>
+                                </select>
+                            </div>
+
                             <!-- Manual Status switcher -->
                             <div v-if="monitor.type === 'manual'" class="mb-3">
                                 <div class="btn-group w-100 mb-3">
@@ -2882,6 +2893,7 @@ const defaultValueList = {
 const monitorDefaults = {
     type: "http",
     name: "",
+    agent_id: null,
     parent: null,
     url: defaultValueList.http.url,
     wsSubprotocol: "",
@@ -2963,6 +2975,7 @@ export default {
                 notificationIDList: {},
                 // Do not add default value here, please check init() method
             },
+            agentList: [],
             domainExpiryUnsupportedReason: null,
             checkDomainDebounce: null,
             acceptedStatusCodeOptions: [],
@@ -3524,6 +3537,12 @@ message HealthCheckResponse {
     },
     mounted() {
         this.init();
+
+        this.$root.getSocket().emit("getAgentList", (res) => {
+            if (res.ok) {
+                this.agentList = res.agents;
+            }
+        });
 
         let acceptedStatusCodeOptions = ["100-199", "200-299", "300-399", "400-499", "500-599"];
 
