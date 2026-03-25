@@ -101,33 +101,60 @@ socket.on("execute_monitor", async (monitor, callback) => {
             }
 
         } else if (monitor.type === "ping") {
-             const pingCount = monitor.ping_count || 1;
-             const pingOpts = {
-                 timeout: monitor.ping_per_request_timeout || monitor.timeout || 20,
-                 min_reply: pingCount,
-                 numeric: monitor.ping_numeric !== undefined ? monitor.ping_numeric : true,
-                 extra: [],
-             };
+             // Use system ping directly and parse RTT from output for accuracy
+             // The 'ping' npm package on Alpine can return incorrect times
+             const { exec } = require("child_process");
+             const count = monitor.ping_count || 1;
+             const timeout = monitor.timeout || 10;
+             const hostname = monitor.hostname;
 
-             // Add packet size if specified
+             // Build ping command with options
+             let cmd = `ping -c ${count} -W ${timeout} -n`;
              if (monitor.packetSize) {
-                 pingOpts.packetSize = monitor.packetSize;
+                 cmd += ` -s ${monitor.packetSize}`;
              }
+             cmd += ` ${hostname}`;
 
-             // Add deadline (global timeout)
-             if (monitor.timeout) {
-                 pingOpts.deadline = monitor.timeout;
-             }
+             const pingResult = await new Promise((resolve) => {
+                 exec(cmd, { timeout: (timeout + 5) * 1000 }, (error, stdout, stderr) => {
+                     const output = stdout || stderr || "";
 
-             const res = await ping.promise.probe(monitor.hostname, pingOpts);
-             if (res.alive) {
+                     // Parse individual ping RTT: "time=1.23 ms" or "time=0.456 ms"
+                     const timeMatches = output.match(/time[=<]([\d.]+)\s*ms/g);
+                     if (timeMatches && timeMatches.length > 0) {
+                         // Extract all RTT values and calculate average
+                         const times = timeMatches.map(m => {
+                             const val = m.match(/([\d.]+)/);
+                             return val ? parseFloat(val[1]) : null;
+                         }).filter(t => t !== null);
+
+                         if (times.length > 0) {
+                             const avg = times.reduce((a, b) => a + b, 0) / times.length;
+                             resolve({ alive: true, time: Math.round(avg * 100) / 100, output });
+                             return;
+                         }
+                     }
+
+                     // Fallback: parse from rtt summary line "min/avg/max/mdev = 0.1/0.2/0.3/0.0 ms"
+                     const rttMatch = output.match(/=\s*([\d.]+)\/([\d.]+)\/([\d.]+)/);
+                     if (rttMatch) {
+                         resolve({ alive: true, time: parseFloat(rttMatch[2]), output }); // [2] = avg
+                         return;
+                     }
+
+                     // Ping failed
+                     resolve({ alive: false, time: 0, output });
+                 });
+             });
+
+             if (pingResult.alive) {
                  result.status = 1;
-                 // Use parseFloat to preserve decimal precision (e.g. 1.23ms instead of 1ms)
-                 result.ping = parseFloat(res.time) || (Date.now() - startTime);
+                 result.ping = pingResult.time;
                  result.msg = "";
+                 console.log(`  Ping RTT: ${pingResult.time}ms`);
              } else {
                  result.status = 0;
-                 result.msg = res.output || "Ping timeout/failed";
+                 result.msg = pingResult.output || "Ping timeout/failed";
              }
         } else {
             result.status = 0;
