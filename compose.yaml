@@ -11,3 +11,16 @@ services:
     ports:
       # <Host Port>:<Container Port>
       - "3001:3001"
+
+  # Uncomment below after setting up Master and getting an Agent Token from Settings → Agents
+  # uptime-kuma-agent:
+  #   build:
+  #     context: ./agent-node
+  #     dockerfile: Dockerfile
+  #   container_name: uptime-kuma-agent
+  #   environment:
+  #     - MASTER_URL=http://uptime-kuma:3001
+  #     - AGENT_TOKEN=<YOUR_AGENT_TOKEN_HERE>
+  #   depends_on:
+  #     - uptime-kuma
+  #   restart: unless-stopped
