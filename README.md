@@ -226,11 +226,50 @@ node index.js --master http://<MASTER_IP>:3001 --token <YOUR_TOKEN>
 | `json-query` | JSON response query checks |
 | `ping` | ICMP ping checks |
 
-## 🆙 How to Update
+## 🆙 How to Update / Rebuild
 
-Please read:
+After pulling new changes from the repository, rebuild the services:
 
-<https://github.com/hendrax5/uptime-kuma-agent/wiki/%F0%9F%86%99-How-to-Update>
+```bash
+git pull
+```
+
+### Rebuild Master Only
+
+```bash
+sudo docker compose down uptime-kuma
+sudo docker compose up --build uptime-kuma -d
+```
+
+### Rebuild Agent Only
+
+```bash
+sudo docker compose down uptime-kuma-agent
+sudo docker compose up --build uptime-kuma-agent -d
+```
+
+### Rebuild Both Master and Agent
+
+```bash
+sudo docker compose down
+sudo docker compose up --build -d
+```
+
+> [!NOTE]
+> If you have two compose files (`compose.yaml` and `docker-compose.yml`), use `-f` to specify which one:
+> ```bash
+> sudo docker compose -f docker-compose.yml up --build -d
+> ```
+
+### Monitor Logs
+
+```bash
+# Master logs
+sudo docker logs -f uptime-kuma-master
+
+# Agent logs
+sudo docker logs -f uptime-kuma-agent
+```
 
 ## 🆕 What's Next?
 
