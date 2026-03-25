@@ -8,7 +8,22 @@ ARG BASE_IMAGE=louislam/uptime-kuma:base2
 FROM louislam/uptime-kuma:builder-go AS build_healthcheck
 
 ############################################
-# Build in Node.js
+# Build Frontend (with devDependencies)
+############################################
+FROM louislam/uptime-kuma:base2 AS build-frontend
+USER node
+WORKDIR /app
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+COPY --chown=node:node .npmrc .npmrc
+COPY --chown=node:node package.json package.json
+COPY --chown=node:node package-lock.json package-lock.json
+RUN npm ci
+COPY --chown=node:node . .
+RUN npm run build
+
+############################################
+# Build in Node.js (production deps only)
 ############################################
 FROM louislam/uptime-kuma:base2 AS build
 USER node
@@ -21,6 +36,7 @@ COPY --chown=node:node package-lock.json package-lock.json
 RUN npm ci --omit=dev
 COPY . .
 COPY --chown=node:node --from=build_healthcheck /app/extra/healthcheck /app/extra/healthcheck
+COPY --chown=node:node --from=build-frontend /app/dist /app/dist
 RUN mkdir ./data
 
 ############################################
