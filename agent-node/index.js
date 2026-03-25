@@ -101,17 +101,33 @@ socket.on("execute_monitor", async (monitor, callback) => {
             }
 
         } else if (monitor.type === "ping") {
-             const res = await ping.promise.probe(monitor.hostname, {
-                 timeout: monitor.timeout || 20,
-                 extra: ["-c", "1"]
-             });
+             const pingCount = monitor.ping_count || 1;
+             const pingOpts = {
+                 timeout: monitor.ping_per_request_timeout || monitor.timeout || 20,
+                 min_reply: pingCount,
+                 numeric: monitor.ping_numeric !== undefined ? monitor.ping_numeric : true,
+                 extra: [],
+             };
+
+             // Add packet size if specified
+             if (monitor.packetSize) {
+                 pingOpts.packetSize = monitor.packetSize;
+             }
+
+             // Add deadline (global timeout)
+             if (monitor.timeout) {
+                 pingOpts.deadline = monitor.timeout;
+             }
+
+             const res = await ping.promise.probe(monitor.hostname, pingOpts);
              if (res.alive) {
                  result.status = 1;
-                 result.ping = parseInt(res.time) || (Date.now() - startTime);
+                 // Use parseFloat to preserve decimal precision (e.g. 1.23ms instead of 1ms)
+                 result.ping = parseFloat(res.time) || (Date.now() - startTime);
                  result.msg = "";
              } else {
                  result.status = 0;
-                 result.msg = "Ping timeout/failed";
+                 result.msg = res.output || "Ping timeout/failed";
              }
         } else {
             result.status = 0;
