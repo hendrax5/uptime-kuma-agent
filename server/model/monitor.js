@@ -121,7 +121,17 @@ class Monitor extends BeanModel {
             screenshot = "/screenshots/" + jwt.sign(this.id, UptimeKumaServer.getInstance().jwtSecret) + ".png";
         }
 
-        const path = preloadData.paths.get(this.id) || [];
+        // Provide default empty Maps to prevent crashes when called without preloadData (e.g. from agent execution)
+        const emptyMap = new Map();
+        const paths = (preloadData.paths || emptyMap);
+        const childrenIDs = (preloadData.childrenIDs || emptyMap);
+        const activeStatus = (preloadData.activeStatus || emptyMap);
+        const forceInactive = (preloadData.forceInactive || emptyMap);
+        const notifications = (preloadData.notifications || emptyMap);
+        const tags = (preloadData.tags || emptyMap);
+        const maintenanceStatus = (preloadData.maintenanceStatus || emptyMap);
+
+        const path = paths.get(this.id) || [];
         const pathName = path.join(" / ");
 
         let data = {
@@ -131,7 +141,7 @@ class Monitor extends BeanModel {
             path,
             pathName,
             parent: this.parent,
-            childrenIDs: preloadData.childrenIDs.get(this.id) || [],
+            childrenIDs: childrenIDs.get(this.id) || [],
             url: this.url,
             wsIgnoreSecWebsocketAcceptHeader: this.getWsIgnoreSecWebsocketAcceptHeader(),
             wsSubprotocol: this.wsSubprotocol,
@@ -142,8 +152,8 @@ class Monitor extends BeanModel {
             protocol: this.protocol,
             maxretries: this.maxretries,
             weight: this.weight,
-            active: preloadData.activeStatus.get(this.id),
-            forceInactive: preloadData.forceInactive.get(this.id),
+            active: activeStatus.get(this.id),
+            forceInactive: forceInactive.get(this.id),
             type: this.type,
             subtype: this.subtype,
             timeout: this.timeout,
@@ -166,9 +176,9 @@ class Monitor extends BeanModel {
             docker_container: this.docker_container,
             docker_host: this.docker_host,
             proxyId: this.proxy_id,
-            notificationIDList: preloadData.notifications.get(this.id) || {},
-            tags: preloadData.tags.get(this.id) || [],
-            maintenance: preloadData.maintenanceStatus.get(this.id),
+            notificationIDList: notifications.get(this.id) || {},
+            tags: tags.get(this.id) || [],
+            maintenance: maintenanceStatus.get(this.id),
             mqttTopic: this.mqttTopic,
             mqttSuccessMessage: this.mqttSuccessMessage,
             mqttCheckType: this.mqttCheckType,
