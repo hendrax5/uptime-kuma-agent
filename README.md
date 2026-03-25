@@ -125,6 +125,107 @@ If you need more options or need to browse via a reverse proxy, please read:
 
 <https://github.com/hendrax5/uptime-kuma-agent/wiki/%F0%9F%94%A7-How-to-Install>
 
+---
+
+## 🤖 Agent Node Installation
+
+The Agent Node runs on remote servers to execute monitoring checks (HTTP, Ping, Keyword) and reports results back to the Master. This enables **distributed monitoring** from multiple locations.
+
+### Prerequisites
+
+1. **Master must be running first** — Set up and access the Master UI (e.g. `http://your-master-ip:3001`)
+2. **Get an Agent Token** — Go to **Settings → Agents** in the Master UI and generate a token
+
+### Option 1: Docker Compose (Same Host as Master)
+
+Edit `compose.yaml` and add the agent service:
+
+```yaml
+services:
+  uptime-kuma:
+    build:
+      context: .
+      dockerfile: docker/dockerfile
+      target: release
+    container_name: uptime-kuma-master
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "3001:3001"
+
+  uptime-kuma-agent:
+    build:
+      context: ./agent-node
+      dockerfile: Dockerfile
+    container_name: uptime-kuma-agent
+    environment:
+      - MASTER_URL=http://uptime-kuma:3001
+      - AGENT_TOKEN=<YOUR_AGENT_TOKEN_HERE>
+    depends_on:
+      - uptime-kuma
+    restart: unless-stopped
+```
+
+Then run:
+
+```bash
+docker compose up --build -d
+```
+
+> [!NOTE]
+> When running on the same Docker network, use the service name `http://uptime-kuma:3001` as the `MASTER_URL` (not `localhost`).
+
+### Option 2: Standalone Docker (Remote Server)
+
+Run the agent on a **different server** to monitor from that location:
+
+```bash
+# Clone the repo (only agent-node/ is needed)
+git clone https://github.com/hendrax5/uptime-kuma-agent.git
+cd uptime-kuma-agent
+
+# Build and run the agent
+docker build -t uptime-kuma-agent ./agent-node
+docker run -d \
+  --name uptime-kuma-agent \
+  --restart unless-stopped \
+  -e MASTER_URL=http://<MASTER_IP>:3001 \
+  -e AGENT_TOKEN=<YOUR_AGENT_TOKEN_HERE> \
+  uptime-kuma-agent
+```
+
+### Option 3: Non-Docker (Node.js)
+
+Requirements: [Node.js](https://nodejs.org/) >= 20
+
+```bash
+cd agent-node
+npm install
+
+# Using environment variables
+MASTER_URL=http://<MASTER_IP>:3001 AGENT_TOKEN=<YOUR_TOKEN> node index.js
+
+# Or using CLI arguments
+node index.js --master http://<MASTER_IP>:3001 --token <YOUR_TOKEN>
+```
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MASTER_URL` | ✅ | Full URL of the Master node (e.g. `http://192.168.1.100:3001`) |
+| `AGENT_TOKEN` | ✅ | Token generated from Master UI → Settings → Agents |
+
+### Supported Monitor Types
+
+| Type | Description |
+|------|-------------|
+| `http` | HTTP/HTTPS status code checks |
+| `keyword` | HTTP response body keyword matching |
+| `json-query` | JSON response query checks |
+| `ping` | ICMP ping checks |
+
 ## 🆙 How to Update
 
 Please read:
