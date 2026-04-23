@@ -63,6 +63,7 @@ const zlib = require("node:zlib");
 const { promisify } = require("node:util");
 const brotliCompress = promisify(zlib.brotliCompress);
 const DomainExpiry = require("./domain_expiry");
+const Traceroute = require("nodejs-traceroute");
 
 const rootCertificates = rootCertificatesFingerprints();
 
@@ -223,6 +224,7 @@ class Monitor extends BeanModel {
             saveResponse: this.getSaveResponse(),
             saveErrorResponse: this.getSaveErrorResponse(),
             responseMaxLength: this.response_max_length ?? RESPONSE_BODY_LENGTH_DEFAULT,
+            enable_hop_analysis: Boolean(this.enable_hop_analysis),
         };
 
         if (includeSensitiveData) {
@@ -740,6 +742,39 @@ class Monitor extends BeanModel {
                     );
                     bean.msg = "";
                     bean.status = UP;
+                    
+                    if (this.enable_hop_analysis) {
+                        try {
+                            const traceResult = await new Promise((resolve) => {
+                                const hops = [];
+                                let errorMsg = null;
+                                let dropped = 0;
+                                const tracer = new Traceroute();
+                                tracer.on('hop', (hop) => {
+                                    if (!hop || !hop.ip || hop.ip === "*") {
+                                        dropped++;
+                                    }
+                                    hops.push(hop);
+                                }).on('close', (code) => {
+                                    const packetLoss = hops.length > 0 ? (dropped / hops.length) * 100 : 0;
+                                    resolve({ hops, packetLoss, error: errorMsg });
+                                }).on('error', (err) => {
+                                    errorMsg = err.message;
+                                    resolve({ hops, packetLoss: 0, error: errorMsg });
+                                });
+                                tracer.trace(this.hostname);
+                            });
+                            
+                            bean.hop_data = JSON.stringify(traceResult.hops);
+                            bean.packet_loss = traceResult.packetLoss;
+                            
+                            if (traceResult.error) {
+                                log.debug("monitor", `Traceroute Error: ${traceResult.error}`);
+                            }
+                        } catch (err) {
+                            log.error("monitor", `Hop Analysis Error: ${err.message}`);
+                        }
+                    }
                 } else if (this.type === "push") {
                     // Type: Push
                     log.debug(
@@ -1003,6 +1038,40 @@ class Monitor extends BeanModel {
                     } else {
                         // Continue counting retries during DOWN
                         retries++;
+                    }
+                }
+                
+                // Add traceroute for ping failures if enabled
+                if (this.type === "ping" && this.enable_hop_analysis) {
+                    try {
+                        const traceResult = await new Promise((resolve) => {
+                            const hops = [];
+                            let errorMsg = null;
+                            let dropped = 0;
+                            const tracer = new Traceroute();
+                            tracer.on('hop', (hop) => {
+                                if (!hop || !hop.ip || hop.ip === "*") {
+                                    dropped++;
+                                }
+                                hops.push(hop);
+                            }).on('close', (code) => {
+                                const packetLoss = hops.length > 0 ? (dropped / hops.length) * 100 : 100;
+                                resolve({ hops, packetLoss, error: errorMsg });
+                            }).on('error', (err) => {
+                                errorMsg = err.message;
+                                resolve({ hops, packetLoss: 100, error: errorMsg });
+                            });
+                            tracer.trace(this.hostname);
+                        });
+                        
+                        bean.hop_data = JSON.stringify(traceResult.hops);
+                        bean.packet_loss = traceResult.packetLoss;
+                        
+                        if (traceResult.error) {
+                            log.debug("monitor", `Traceroute Error (Ping Failed): ${traceResult.error}`);
+                        }
+                    } catch (err) {
+                        log.error("monitor", `Hop Analysis Error (Ping Failed): ${err.message}`);
                     }
                 }
             }

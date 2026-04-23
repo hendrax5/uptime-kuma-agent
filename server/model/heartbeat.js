@@ -22,6 +22,7 @@ class Heartbeat extends BeanModel {
             time: this.time,
             msg: "", // Hide for public
             ping: this.ping,
+            packet_loss: this.packet_loss,
         };
     }
 
@@ -40,6 +41,8 @@ class Heartbeat extends BeanModel {
             duration: this._duration,
             retries: this._retries,
             response: this._response,
+            hop_data: this._hop_data,
+            packet_loss: this._packet_loss,
         };
     }
 
@@ -59,6 +62,8 @@ class Heartbeat extends BeanModel {
             duration: this._duration,
             retries: this._retries,
             response: opts?.decodeResponse ? await Heartbeat.decodeResponseValue(this._response) : undefined,
+            hop_data: this._hop_data,
+            packet_loss: this._packet_loss,
         };
     }
 

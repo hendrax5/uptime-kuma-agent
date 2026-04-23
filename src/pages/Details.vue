@@ -131,6 +131,10 @@
                         <font-awesome-icon icon="clone" />
                         {{ $t("Clone") }}
                     </router-link>
+                    <button class="btn btn-normal text-info" @click="showReportModal">
+                        <font-awesome-icon icon="file-export" />
+                        Export Report
+                    </button>
                     <button class="btn btn-normal text-danger" @click="deleteDialog">
                         <font-awesome-icon icon="trash" />
                         {{ $t("Delete") }}
@@ -303,6 +307,13 @@
                 </div>
             </div>
 
+            <!-- Hop Analysis Timeline -->
+            <transition name="slide-fade" appear>
+                <div v-if="(monitor.type === 'ping' || monitor.enable_hop_analysis) && lastHeartBeat && (lastHeartBeat.hop_data || lastHeartBeat.packet_loss !== undefined)" class="mt-4">
+                    <HopAnalysisTimeline :hops-data="lastHeartBeat.hop_data" :packet-loss="lastHeartBeat.packet_loss" />
+                </div>
+            </transition>
+
             <!-- Screenshot -->
             <div v-if="monitor.type === 'real-browser'" class="shadow-box">
                 <div class="row">
@@ -425,6 +436,8 @@
             >
                 {{ $t("clearHeartbeatsMsg") }}
             </Confirm>
+
+            <ReportEngineModal ref="reportModal" :monitor-id="monitor.id" />
         </div>
     </transition>
 </template>
@@ -441,6 +454,8 @@ import CountUp from "../components/CountUp.vue";
 import Uptime from "../components/Uptime.vue";
 import Pagination from "v-pagination-3";
 const PingChart = defineAsyncComponent(() => import("../components/PingChart.vue"));
+const HopAnalysisTimeline = defineAsyncComponent(() => import("../components/HopAnalysisTimeline.vue"));
+const ReportEngineModal = defineAsyncComponent(() => import("../components/ReportEngineModal.vue"));
 import Tag from "../components/Tag.vue";
 import CertificateInfo from "../components/CertificateInfo.vue";
 import { getMonitorRelativeURL } from "../util.ts";
@@ -466,6 +481,8 @@ export default {
         Status,
         Pagination,
         PingChart,
+        HopAnalysisTimeline,
+        ReportEngineModal,
         Tag,
         CertificateInfo,
         PrismEditor,
@@ -685,6 +702,16 @@ export default {
          */
         showScreenshotDialog() {
             this.$refs.screenshotDialog.show();
+        },
+
+        /**
+         * Show Report Modal
+         * @returns {void}
+         */
+        showReportModal() {
+            if (this.$refs.reportModal) {
+                this.$refs.reportModal.show();
+            }
         },
 
         /**
