@@ -744,35 +744,34 @@ class Monitor extends BeanModel {
                     bean.status = UP;
                     
                     if (this.enable_hop_analysis) {
-                        try {
-                            const traceResult = await new Promise((resolve) => {
-                                const hops = [];
-                                let errorMsg = null;
-                                let dropped = 0;
-                                const tracer = new Traceroute();
-                                tracer.on('hop', (hop) => {
-                                    if (!hop || !hop.ip || hop.ip === "*") {
-                                        dropped++;
-                                    }
-                                    hops.push(hop);
-                                }).on('close', (code) => {
-                                    const packetLoss = hops.length > 0 ? (dropped / hops.length) * 100 : 0;
-                                    resolve({ hops, packetLoss, error: errorMsg });
-                                }).on('error', (err) => {
-                                    errorMsg = err.message;
-                                    resolve({ hops, packetLoss: 0, error: errorMsg });
-                                });
-                                tracer.trace(this.hostname);
-                            });
-                            
-                            bean.hop_data = JSON.stringify(traceResult.hops);
-                            bean.packet_loss = traceResult.packetLoss;
-                            
-                            if (traceResult.error) {
-                                log.debug("monitor", `Traceroute Error: ${traceResult.error}`);
+                        // Run traceroute in the background so it doesn't block the interval
+                        const tracer = new Traceroute();
+                        const hops = [];
+                        let dropped = 0;
+                        tracer.on('hop', (hop) => {
+                            if (!hop || !hop.ip || hop.ip === "*") {
+                                dropped++;
                             }
-                        } catch (err) {
-                            log.error("monitor", `Hop Analysis Error: ${err.message}`);
+                            hops.push(hop);
+                        }).on('close', async (code) => {
+                            try {
+                                const packetLoss = hops.length > 0 ? (dropped / hops.length) * 100 : 0;
+                                const hopData = JSON.stringify(hops);
+                                // Update database asynchronously
+                                if (bean.id) {
+                                    const { R } = require("redbean-node");
+                                    await R.exec("UPDATE heartbeat SET hop_data = ?, packet_loss = ? WHERE id = ?", [hopData, packetLoss, bean.id]);
+                                }
+                            } catch (e) {
+                                log.debug("monitor", `Failed to save async hop data: ${e.message}`);
+                            }
+                        }).on('error', (err) => {
+                            log.debug("monitor", `Traceroute Error: ${err.message}`);
+                        });
+                        try {
+                            tracer.trace(this.hostname);
+                        } catch (e) {
+                            log.debug("monitor", `Failed to start traceroute: ${e.message}`);
                         }
                     }
                 } else if (this.type === "push") {
@@ -1043,35 +1042,32 @@ class Monitor extends BeanModel {
                 
                 // Add traceroute for ping failures if enabled
                 if (this.type === "ping" && this.enable_hop_analysis) {
-                    try {
-                        const traceResult = await new Promise((resolve) => {
-                            const hops = [];
-                            let errorMsg = null;
-                            let dropped = 0;
-                            const tracer = new Traceroute();
-                            tracer.on('hop', (hop) => {
-                                if (!hop || !hop.ip || hop.ip === "*") {
-                                    dropped++;
-                                }
-                                hops.push(hop);
-                            }).on('close', (code) => {
-                                const packetLoss = hops.length > 0 ? (dropped / hops.length) * 100 : 100;
-                                resolve({ hops, packetLoss, error: errorMsg });
-                            }).on('error', (err) => {
-                                errorMsg = err.message;
-                                resolve({ hops, packetLoss: 100, error: errorMsg });
-                            });
-                            tracer.trace(this.hostname);
-                        });
-                        
-                        bean.hop_data = JSON.stringify(traceResult.hops);
-                        bean.packet_loss = traceResult.packetLoss;
-                        
-                        if (traceResult.error) {
-                            log.debug("monitor", `Traceroute Error (Ping Failed): ${traceResult.error}`);
+                    const tracer = new Traceroute();
+                    const hops = [];
+                    let dropped = 0;
+                    tracer.on('hop', (hop) => {
+                        if (!hop || !hop.ip || hop.ip === "*") {
+                            dropped++;
                         }
-                    } catch (err) {
-                        log.error("monitor", `Hop Analysis Error (Ping Failed): ${err.message}`);
+                        hops.push(hop);
+                    }).on('close', async (code) => {
+                        try {
+                            const packetLoss = hops.length > 0 ? (dropped / hops.length) * 100 : 100;
+                            const hopData = JSON.stringify(hops);
+                            if (bean.id) {
+                                const { R } = require("redbean-node");
+                                await R.exec("UPDATE heartbeat SET hop_data = ?, packet_loss = ? WHERE id = ?", [hopData, packetLoss, bean.id]);
+                            }
+                        } catch (e) {
+                            log.debug("monitor", `Failed to save async hop data for failure: ${e.message}`);
+                        }
+                    }).on('error', (err) => {
+                        log.debug("monitor", `Traceroute Error (Ping Failed): ${err.message}`);
+                    });
+                    try {
+                        tracer.trace(this.hostname);
+                    } catch (e) {
+                        log.debug("monitor", `Failed to start traceroute for failure: ${e.message}`);
                     }
                 }
             }
