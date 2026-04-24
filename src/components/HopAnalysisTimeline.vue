@@ -1,3 +1,4 @@
+<template>
     <div class="hop-analysis-timeline my-3 p-4 bg-dark text-white rounded-4 shadow-lg border border-secondary border-opacity-25">
         <h4 class="mb-4 d-flex align-items-center">
             <font-awesome-icon icon="network-wired" class="me-3 text-info fs-3" />
