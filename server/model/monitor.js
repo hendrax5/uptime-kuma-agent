@@ -761,6 +761,13 @@ class Monitor extends BeanModel {
                                 if (bean.id) {
                                     const { R } = require("redbean-node");
                                     await R.exec("UPDATE heartbeat SET hop_data = ?, packet_loss = ? WHERE id = ?", [hopData, packetLoss, bean.id]);
+                                    
+                                    // Update bean in memory and emit to frontend so UI updates immediately
+                                    bean.hop_data = hopData;
+                                    bean.packet_loss = packetLoss;
+                                    const { UptimeKumaServer } = require("../uptime-kuma-server");
+                                    const io = UptimeKumaServer.getInstance().io;
+                                    io.to(this.user_id).emit("heartbeat", bean.toJSON());
                                 }
                             } catch (e) {
                                 log.debug("monitor", `Failed to save async hop data: ${e.message}`);
@@ -1057,6 +1064,13 @@ class Monitor extends BeanModel {
                             if (bean.id) {
                                 const { R } = require("redbean-node");
                                 await R.exec("UPDATE heartbeat SET hop_data = ?, packet_loss = ? WHERE id = ?", [hopData, packetLoss, bean.id]);
+                                
+                                // Update bean in memory and emit to frontend so UI updates immediately
+                                bean.hop_data = hopData;
+                                bean.packet_loss = packetLoss;
+                                const { UptimeKumaServer } = require("../uptime-kuma-server");
+                                const io = UptimeKumaServer.getInstance().io;
+                                io.to(this.user_id).emit("heartbeat", bean.toJSON());
                             }
                         } catch (e) {
                             log.debug("monitor", `Failed to save async hop data for failure: ${e.message}`);
